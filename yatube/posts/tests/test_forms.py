@@ -46,7 +46,7 @@ class PostCreateFormTests(TestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_create_post_authorized(self):
-        """Валидная форма создает запись в Post."""
+        '''Валидная форма создает запись в Post.'''
         post_count = Post.objects.count()
         form_data = {
             'group': PostCreateFormTests.group.id,
@@ -69,11 +69,6 @@ class PostCreateFormTests(TestCase):
 
 
 class PostEditFormTests(TestCase):
-
-    class Meta:
-        model = Post
-        fields = '__all__'
-
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
