@@ -59,13 +59,16 @@ class PostURLTests(TestCase):
 
     def test_post_edit_url_redirect_anonymous(self):
         """Страница /post_id/edit перенаправляет анонимного пользователя."""
-        response = self.guest_client.get(f'/posts/{self.post.id}/edit/')
-        self.assertRedirects(response, f'/auth/login/?next=/posts/'
-                                       f'{self.post.id}/edit/')
+        response = self.guest_client.get(reverse('posts:post_edit',
+                                                 kwargs={'post_id':
+                                                         PostURLTests.
+                                                         post.id}))
+        self.assertRedirects(response, '/auth/login/?next=/posts/1/edit/')
 
     def test_post_create_url_redirect_anonymous(self):
         """Страница /posts/create/ перенаправляет анонимного пользователя. """
-        response = self.guest_client.get('/create/', follow=True)
+        response = self.guest_client.get(reverse('posts:post_create'),
+                                         follow=True)
         self.assertRedirects(response, ('/auth/login/?next=/create/'))
 
     def test_unexisting_page(self):
