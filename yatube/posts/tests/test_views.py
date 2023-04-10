@@ -154,13 +154,17 @@ class PaginatorViewsTest(TestCase):
             slug='test-slug',
             description='Тестовое описание',
         )
-        list_objs = list()
-        for i in range(NUM_POST + PaginatorViewsTest.NUM_POST_OF_PAGE_2):
-            list_objs.append(Post.objects.create(
+        Post.objects.all().delete()
+        list_objs = [
+            Post(
                 author=cls.user,
                 text=f'Тестовое содержание поста #{i}',
-                group=cls.group)
+                group=cls.group,
+            ) for i in range(
+                NUM_POST + PaginatorViewsTest.NUM_POST_OF_PAGE_2
             )
+        ]
+        Post.objects.bulk_create(list_objs)
 
     def setUp(self):
         self.authorized_client = Client()
@@ -176,23 +180,19 @@ class PaginatorViewsTest(TestCase):
                                              PaginatorViewsTest.
                                              user.username})
         ]
-        get_first_page_contains_ten_records(self,
-                                            self.authorized_client,
-                                            pages_names)
-        get_second_page_contains_three_records(self,
-                                               self.authorized_client,
-                                               pages_names)
+        page_offset = {'': NUM_POST,
+                       '?page=2': PaginatorViewsTest.NUM_POST_OF_PAGE_2,
+                       }
+        get_page_contains(self,
+                          self.authorized_client,
+                          pages_names,
+                          page_offset)
 
 
-def get_first_page_contains_ten_records(self, client, page_names):
-    for url in page_names:
-        with self.subTest(url=url):
-            response = client.get(url)
-            self.assertEqual(len(response.context['page_obj']), 10)
-
-
-def get_second_page_contains_three_records(self, client, page_names):
-    for url in page_names:
-        with self.subTest(url=url):
-            response = client.get(url + '?page=2')
-            self.assertEqual(len(response.context['page_obj']), 3)
+def get_page_contains(self, client, page_names, page_offset):
+    for page_URL, num_of_posts_in_page in page_offset.items():
+        for url in page_names:
+            with self.subTest(url=url):
+                response = client.get(url + page_URL)
+                self.assertEqual(len(response.context['page_obj']),
+                                 num_of_posts_in_page)

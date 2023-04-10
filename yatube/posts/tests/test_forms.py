@@ -105,7 +105,7 @@ class PostEditFormTests(TestCase):
         self.assertEqual(Post.objects.count(), tasks_count)
         self.assertEqual(response.status_code, HTTPStatus.OK)
         modified_post = Post.objects.get(id=PostEditFormTests.post.id)
-        self.assertEquals(modified_post.text, 'test')
+        self.assertEqual(modified_post.text, 'test')
         self.assertRedirects(response,
                              reverse('posts:post_detail',
                                      kwargs={'post_id':
