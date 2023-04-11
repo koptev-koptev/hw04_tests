@@ -23,13 +23,24 @@ class PostURLTests(TestCase):
             author=cls.user,
             text='Текст поста',
         )
-        cls.index_url = '/'
-        cls.create_url = '/create/'
-        cls.profile_url = f'/profile/{cls.user.username}/'
-        cls.post_url = f'/posts/{cls.post.id}/'
-        cls.post_edit_url = f'/posts/{cls.post.id}/edit/'
-        cls.group_url = f'/group/{cls.group.slug}/'
-        cls.comment_url = f'/posts/{cls.post.id}/comment/'
+        cls.index_url = reverse('posts:index')
+        cls.create_url = reverse('posts:post_create')
+        cls.profile_url = (reverse('posts:profile',
+                                   kwargs={'username':
+                                           PostURLTests.
+                                           post.author}))
+        cls.post_url = (reverse('posts:post_detail',
+                                kwargs={'post_id':
+                                        PostURLTests.
+                                        post.id}))
+        cls.post_edit_url = (reverse('posts:post_edit',
+                                     kwargs={'post_id':
+                                             PostURLTests.
+                                             post.id}))
+        cls.group_url = (reverse('posts:group_posts',
+                                 kwargs={'slug':
+                                         PostURLTests.
+                                         group.slug}))
 
     def setUp(self):
         self.guest_client = Client()
@@ -73,8 +84,11 @@ class PostURLTests(TestCase):
                                                  kwargs={'post_id':
                                                          PostURLTests.
                                                          post.id}))
-        self.assertRedirects(response,
-                             '/auth/login/?next=' + PostURLTests.post_edit_url)
+        redirect_URL = '/auth/login/?next=' + reverse('posts:post_edit',
+                                                      kwargs={'post_id':
+                                                              PostURLTests.
+                                                              post.id})
+        self.assertRedirects(response, redirect_URL)
 
     def test_post_edit_url_redirect_non_author(self):
         """Страница /post_id/edit перенаправляет не автора."""
