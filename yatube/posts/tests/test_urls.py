@@ -102,9 +102,8 @@ class PostURLTests(TestCase):
         """Страница /posts/create/ перенаправляет анонимного пользователя. """
         response = self.guest_client.get(reverse('posts:post_create'),
                                          follow=True)
-        self.assertRedirects(response,
-                             '/auth/login/?next='
-                             + PostURLTests.create_url)
+        redirect_URL = '/auth/login/?next=' + reverse('posts:post_create')
+        self.assertRedirects(response, redirect_URL)
 
     def test_unexisting_page(self):
         """Запрос к странице unixisting_page вернет ошибку 404"""
