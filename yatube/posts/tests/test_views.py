@@ -2,8 +2,9 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 from django import forms
-from ..models import Group, Post
+from ..models import Group, Post, User, Follow
 from posts.views import NUM_POST
+from django.core.cache import cache
 
 User = get_user_model()
 
@@ -94,7 +95,7 @@ class PostPagesTests(TestCase):
         self.assertEqual(post_context, PostPagesTests.post)
 
     def test_create_post__page_show_correct_context(self):
-        """Шаблон home сформирован с правильным контекстом."""
+        """Шаблон create сформирован с правильным контекстом."""
         response = self.authorized_client.get(reverse('posts:post_create'))
         form_fields = {
             'text': forms.fields.CharField,
@@ -108,7 +109,7 @@ class PostPagesTests(TestCase):
         self.assertEqual(username_context, PostPagesTests.user)
 
     def test_post_edit_page_show_correct_context(self):
-        """Шаблон home сформирован с правильным контекстом."""
+        """Шаблон edit сформирован с правильным контекстом."""
         response = self.authorized_client.get(reverse('posts:post_edit',
                                                       kwargs={'post_id':
                                                               PostPagesTests.
@@ -139,6 +140,21 @@ class PostPagesTests(TestCase):
             with self.subTest(url=url):
                 response = self.authorized_client.get(url)
                 self.assertEqual(len(response.context['page_obj']), 1)
+
+    def test_cache_index_page_correct_context(self):
+        """Кэш index сформирован с правильным контекстом."""
+        response = self.authorized_client.get(reverse('posts:index'))
+        content = response.content
+        post_id = PostPagesTests.post.id
+        instance = Post.objects.get(pk=post_id)
+        instance.delete()
+        new_response = self.authorized_client.get(reverse('posts:index'))
+        new_content = new_response.content
+        self.assertEqual(content, new_content)
+        cache.clear()
+        new_new_response = self.authorized_client.get(reverse('posts:index'))
+        new_new_content = new_new_response.content
+        self.assertNotEqual(content, new_new_content)
 
 
 class PaginatorViewsTest(TestCase):
@@ -196,3 +212,50 @@ def get_page_contains(self, client, page_names, page_offset):
                 response = client.get(url + page_URL)
                 self.assertEqual(len(response.context['page_obj']),
                                  num_of_posts_in_page)
+
+
+class FollowTest(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.author = User.objects.create_user(username='following')
+        cls.visitor = User.objects.create_user(username='follower')
+        cls.simple_user = User.objects.create_user(username='simpleUser')
+
+    def setUp(self) -> None:
+        self.visitor_client = Client()
+        self.simple_user_client = Client()
+        self.visitor_client.force_login(self.visitor)
+        self.simple_user_client.force_login(self.simple_user)
+        self.post = Post.objects.create(
+            author=self.author,
+            text='текст'
+        )
+
+    def test_user_can_following_and_unfollowing(self):
+        """Пользователь может подписаться или отписаться"""
+        follow_count = Follow.objects.count()
+        self.visitor_client.get(reverse('posts:profile_follow',
+                                kwargs={'username': self.author.username}))
+        self.assertEqual(Follow.objects.count(), follow_count + 1)
+        follow_count = Follow.objects.count()
+        self.visitor_client.get(reverse('posts:profile_unfollow',
+                                kwargs={'username': self.author.username}))
+        self.assertEqual(Follow.objects.count(), follow_count - 1)
+
+    def test_follow_page_for_follower(self):
+        """Пост появляется на странице того, кто подписан"""
+        self.visitor_client.get(reverse('posts:profile_follow', kwargs={
+            'username': self.author.username,
+        }))
+        response = self.visitor_client.get(reverse('posts:follow_index'))
+        self.assertEqual(response.context['page_obj'][0].text, self.post.text)
+        '''self.assertContains(response, self.post.text)'''
+
+    def test_follow_page_for_user(self):
+        """Пост не появляется на странице того, кто не подписан"""
+        self.visitor_client.get(reverse('posts:profile_follow', kwargs={
+            'username': self.author.username,
+        }))
+        response = self.simple_user_client.get(reverse('posts:follow_index'))
+        self.assertNotIn(self.post.text, response)

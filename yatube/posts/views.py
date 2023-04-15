@@ -4,7 +4,8 @@ from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, render, redirect
 from django.views.decorators.http import require_http_methods
 from .forms import PostForm
-from .models import Post, Group
+from .models import Post, Group, User, Follow
+from .forms import PostForm, CommentForm
 
 NUM_POST = 10
 
@@ -39,18 +40,33 @@ def group_posts(request, slug):
 
 
 def profile(request, username):
+    """Список постов автора."""
     author = get_object_or_404(User, username=username)
+    author_posts = author.posts.all()
+    count = author_posts.count()
+    paginator = Paginator(author_posts, NUM_POST)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    following = False
+    if request.user.is_authenticated and author != request.user:
+        following = Follow.objects.filter(
+            user=request.user, author=author).exists()
     context = {
+        'count': count,
         'author': author,
-    }
-    context.update(get_page_context(author.posts.all(), request))
+        'page_obj': page_obj,
+        'following': following}
     return render(request, 'posts/profile.html', context)
 
 
 def post_detail(request, post_id):
     post = get_object_or_404(Post, id=post_id)
+    comments = post.comments.all()
+    form = CommentForm()
     context = {
         'post': post,
+        'comments': comments,
+        'form': form,
     }
     return render(request, 'posts/post_detail.html', context)
 
@@ -76,9 +92,9 @@ def post_create(request):
 @require_http_methods(["GET", "POST"])
 def post_edit(request, post_id):
     post = get_object_or_404(Post, pk=post_id)
-    form = PostForm(request.POST or None, instance=post)
     if post.author != request.user:
-        return redirect('posts:post_detail', post_id)
+        return redirect('posts:post_detail', post_id=post_id)
+
     form = PostForm(
         request.POST or None,
         files=request.FILES or None,
@@ -92,3 +108,51 @@ def post_edit(request, post_id):
 
     return render(request, 'posts/create_post.html',
                   {'form': form, 'username': request.user, 'is_edit': True})
+
+
+@login_required
+def add_comment(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    form = CommentForm(request.POST or None)
+    if form.is_valid():
+        comment = form.save(commit=False)
+        comment.author = request.user
+        comment.post = post
+        comment.save()
+    return redirect('posts:post_detail', post_id=post_id)
+
+
+@login_required
+def follow_index(request):
+    posts = Post.objects.filter(author__following__user=request.user)
+    paginator = Paginator(posts, NUM_POST)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    context = {
+        'page_obj': page_obj}
+    return render(request, 'posts/follow.html', context)
+
+
+@login_required
+def profile_follow(request, username):
+    """Делает подписку на автора."""
+    author = get_object_or_404(User, username=username)
+    follow = Follow.objects.filter(
+        user=request.user,
+        author=author)
+    if request.user != author and not follow.exists():
+        Follow.objects.create(user=request.user,
+                              author=author)
+
+    return redirect('posts:profile', username=username)
+
+
+@login_required
+def profile_unfollow(request, username):
+    """Делает отписку от автора."""
+    author = User.objects.get(username=username)
+    Follow.objects.filter(
+        user=request.user,
+        author=author,
+    ).delete()
+    return redirect('posts:profile', username=username)

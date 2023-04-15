@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 from ..forms import PostForm
-from ..models import Group, Post
+from ..models import Group, Post, Comment
 
 User = get_user_model()
 
@@ -67,6 +67,25 @@ class PostCreateFormTests(TestCase):
             ).exists()
         )
 
+    def test_add_comment_authorized_client(self):
+        """После проверки формы комментарий добавляется в пост"""
+        form_data = {
+            'text': 'Комментарий',
+        }
+        response = self.authorized_client.post(
+            reverse(
+                'posts:add_comment',
+                kwargs={'post_id': self.post.id}
+            ),
+            data=form_data, follow=True
+        )
+        self.assertRedirects(response, reverse('posts:post_detail', kwargs={
+                             'post_id': PostCreateFormTests.post.id}))
+        self.assertTrue(
+            Comment.objects.filter(
+                text='Комментарий'
+            ).exists())
+
 
 class PostEditFormTests(TestCase):
     @classmethod
@@ -89,8 +108,8 @@ class PostEditFormTests(TestCase):
         self.authorized_client = Client()
         self.authorized_client.force_login(PostEditFormTests.user)
 
-    def test_cant_edit_post_authorized(self):
-        '''Тестируем редактирования поста авторизованным пользователем'''
+    def test_edit_post_authorized(self):
+        '''Тестируем редактирование поста авторизованным пользователем'''
         tasks_count = Post.objects.count()
         form_data = {
             'group': PostCreateFormTests.group.id,

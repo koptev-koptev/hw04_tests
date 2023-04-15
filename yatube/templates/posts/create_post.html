@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load thumbnail %}
 {% block title %}Новый пост{% endblock %}
 {% block content %}
     <div class="container py-5">
@@ -15,16 +16,9 @@
               </div>
               <form action="{% url 'posts:post_create' %}" method="post">
               {% csrf_token %}
-                <div class="form-group row my-3 p-3">
-                  <label for="id_text">Текст поста<span class="required text-danger" >*</span></label>
-                  {{ form.text }}
-                  <span class="helptext text-muted">{{ text }}</span>
-                </div>
-                <div class="form-group row my-3 p-3">
-                  <label for="id_group">Группа</label>
-                  {{ form.group }}
-                  <span class="helptext text-muted">Группа, к которой будет относиться пост</span>
-                </div>
+              {% for field in form %}
+                {% include 'includes/form_fields.html' %}
+              {% endfor %}                
               <div class="d-flex justify-content-end">
                 <button type="submit" class="btn btn-primary">
                   {% if is_edit %}

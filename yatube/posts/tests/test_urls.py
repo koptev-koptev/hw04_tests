@@ -132,3 +132,10 @@ class PostURLTests(TestCase):
             PostURLTests.post_edit_url, follow=True
         )
         self.assertRedirects(response, PostURLTests.post_url)
+
+    def test_error_page(self):
+        """Запрос к страница nonexist-page вернет ошибку 404"""
+        response = self.guest_client.get('/nonexist_page/')
+        self.assertTemplateUsed(response, 'core/404.html')
+        response = self.authorized_client.get('/nonexist_page/')
+        self.assertTemplateUsed(response, 'core/404.html')
